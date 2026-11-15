@@ -1,0 +1,12 @@
+# DD_Cleaner - Requirements
+# Python 3.7+ required
+
+# Qt6 Version (recommended - modern UI)
+PySide6>=6.0.0
+
+# Build (portable exe)
+# pyinstaller>=6.0
+
+# Development dependencies
+# pytest>=7.0.0  # Run the test suite: python -m pytest
+# black>=22.0.0   # Code formatting

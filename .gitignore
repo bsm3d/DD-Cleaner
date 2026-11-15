@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Build output (PyInstaller, Inno Setup)
+build/
+dist/
+dist_installer/
+
+# Data the program writes next to itself when run from source (data_dir() is the project folder then):
+# downloaded databases, logs, backups, saved keys, interface state. Never versioned.
+clamav/
+geoip/
+logs/
+driver_blocklist/
+hardening_backups/
+*_backups/
+api_keys.json
+garbage_stats.json
+ui_state.ini
+*.log
+
+# Local tooling
+.claude/
