@@ -500,7 +500,11 @@ class SystemInfoTabMixin:
                                 "Restart the application as administrator.")
             return
         if not self._confirm(
-                "Show saved passwords",
+                "Show saved passwords (personal use only)",
+                "⚠️ PERSONAL USE ONLY\n"
+                "Use this only on your own PC, to recover your own passwords and keys. Reading the passwords of "
+                "another person, or of a PC that is not yours, without their permission is forbidden and may be "
+                "a crime.\n\n"
                 "This reads the secrets saved on this PC and shows them on screen:\n"
                 "  • Wi-Fi passwords and the firmware Windows key\n"
                 "  • Windows Credential Manager (saved web, app and Remote Desktop logins)\n"
@@ -508,7 +512,7 @@ class SystemInfoTabMixin:
                 "  • website passwords saved in Chrome, Edge, Brave and Firefox\n\n"
                 "Nothing is written to a file or to the log, the clipboard is cleared 30 seconds after you copy a "
                 "secret, and this window empties itself when closed. Make sure nobody can see your screen.\n\n"
-                "Continue?"):
+                "I confirm these are my own passwords. Continue?"):
             return
         self._start_call("secrets_worker", saved_keys.collect_secrets, self._on_secrets_read, None,
                          "Reading saved passwords...")

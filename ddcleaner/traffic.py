@@ -637,6 +637,8 @@ class CountryTraffic:
     sent: int = 0
     rate_in: float = 0.0
     rate_out: float = 0.0
+    addresses: Set[str] = field(default_factory=set)   # remote addresses
+    hosts: Set[str] = field(default_factory=set)       # site names the programs asked for
 
     @property
     def connections(self) -> int:
@@ -667,6 +669,9 @@ def by_country(snap: TrafficSnapshot) -> Tuple[Dict[str, CountryTraffic], int]:
             ct.sent += r.sent or 0
             ct.rate_in += r.rate_in
             ct.rate_out += r.rate_out
+            ct.addresses.add(r.conn.remote_addr)
+            if r.site:
+                ct.hosts.add(r.site.split(" (+")[0])
     return countries, unlocated
 
 @dataclass
@@ -684,6 +689,10 @@ class PlaceTraffic:
     destinations: Set[str] = field(default_factory=set)
     received: int = 0
     sent: int = 0
+    rate_in: float = 0.0          # now, bytes per second (administrator only)
+    rate_out: float = 0.0
+    addresses: Set[str] = field(default_factory=set)
+    hosts: Set[str] = field(default_factory=set)
 
     @property
     def connections(self) -> int:
@@ -714,6 +723,11 @@ def by_place(snap: TrafficSnapshot) -> Dict[str, PlaceTraffic]:
             place.destinations.add(r.site.split(" (+")[0] or r.owner or r.conn.remote_addr)
             place.received += r.received or 0
             place.sent += r.sent or 0
+            place.rate_in += r.rate_in
+            place.rate_out += r.rate_out
+            place.addresses.add(r.conn.remote_addr)
+            if r.site:
+                place.hosts.add(r.site.split(" (+")[0])
     return places
 
 # endregion

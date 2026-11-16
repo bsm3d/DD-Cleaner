@@ -43,7 +43,8 @@ WORKER_ATTRS = ("driver_scan_worker", "vuln_scan_worker", "blocklist_download_wo
                 "garbage_delete_worker", "hunt_process_worker", "hunt_persistence_worker",
                 "vt_worker", "prefs_test_worker", "hunt_remove_worker", "garbage_usage_worker",
                 "driver_unused_worker", "driver_remove_worker", "driver_all_worker", "driver_restore_worker",
-                "driver_uninstall_worker", "driver_leftover_worker", "yara_rule_worker", "startup_remove_worker")
+                "driver_uninstall_worker", "driver_leftover_worker", "yara_rule_worker", "startup_remove_worker",
+                "route_worker")
 
 
 # What the "still running" question calls an operation (anything else: its internal name, made readable)
@@ -52,7 +53,8 @@ OPERATION_LABELS = {"dism_worker": "System repair (SFC / DISM)", "clam_scan_work
                     "net_worker": "Firewall and network analysis", "hardening": "Advanced tweaks",
                     "hardening_apply_worker": "Hardening profile", "hardening_revert_worker": "Undo of a hardening change",
                     "garbage_file_worker": "Garbage file scan", "garbage_reg_worker": "Garbage registry scan",
-                    "garbage_delete_worker": "Garbage deletion", "network_reset": "Network reset"}
+                    "garbage_delete_worker": "Garbage deletion", "network_reset": "Network reset",
+                    "route_worker": "Route trace"}
 LOG_TAIL_BYTES = 512 * 1024
 # Options remembered between two runs (checkboxes, lists, numbers). Never the ones that make an action destructive.
 STATE_WIDGETS = ("clam_quarantine_cb", "clam_archives_cb", "clam_maxsize_spin", "clam_pua_cb", "clam_thorough_cb",
@@ -587,6 +589,9 @@ class MainWindow(
         self.stop_flag.set()
         if self.dism_worker and self.dism_worker.isRunning():
             self.dism_worker.kill()
+        route_worker = getattr(self, "route_worker", None)
+        if route_worker is not None and route_worker.isRunning():
+            route_worker.kill()
         for attr in ("clam_scan_worker", "clam_update_worker"):
             w = getattr(self, attr, None)
             if w is not None and w.isRunning():

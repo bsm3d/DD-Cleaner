@@ -442,6 +442,7 @@ def test_secrets_need_administrator_and_a_confirmation(window, dialogs, monkeypa
     dialogs["answer"] = QMessageBox.StandardButton.No
     window._show_saved_secrets()
     assert dialogs["question"] and getattr(window, "secrets_worker", None) is None
+    assert "PERSONAL USE ONLY" in dialogs["question"][-1][0] and "your own" in dialogs["question"][-1][0]
 
 
 def test_secrets_are_hidden_until_shown_and_never_logged(window, monkeypatch, caplog):  # noqa: F811

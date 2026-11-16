@@ -9,14 +9,15 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QMessageBox, QTabWidget, QTreeWidget,
     QTreeWidgetItem, QHeaderView, QGroupBox, QCheckBox, QSplitter, QLineEdit, QApplication, QMenu, QComboBox
 )
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QColor, QCursor, QDesktopServices
 
-from ddcleaner import firewall, geo, geoip, health, network, traffic
+from ddcleaner import firewall, geo, geoip, health, network, route, traffic
 from ddcleaner.common import SUBPROCESS_FLAGS, SYSTEM32, safe_environment, sys_exe
 from ddcleaner.system_utils import SystemUtils
 from ddcleaner.ui.tab_health import fill_status_tree, status_tree
 from ddcleaner.ui.world_map import WorldMapWidget
+from ddcleaner.ui.dialog_route import RouteDialog
 from ddcleaner.ui.safe_text import plain
 from ddcleaner.ui.tab_system_info import primary
 from ddcleaner.workers import NetworkAnalysisWorker, TrafficSampleWorker, GeoIPDownloadWorker
@@ -226,10 +227,15 @@ class NetworkTabMixin:
         self.world_map = WorldMapWidget()
         self.world_map.country_clicked.connect(self._show_country_traffic)
         self.world_map.place_clicked.connect(self._show_place_traffic)
+        self.world_map.place_activated.connect(self._map_lookup)
+        self.world_map.place_trace.connect(self._map_trace)
+        self.world_map.context_requested.connect(self._map_menu)
         layout.addWidget(self.world_map, 1)
-        hint = QLabel("Hover a city or country for details, click it to list its connections. Wheel: zoom, drag: move, "
-                      "double click: whole world. Without DB-IP, destinations are placed by the owner's country "
-                      "(needs \"Look up owners\" on the Live traffic page).")
+        hint = QLabel("Hover a city, a country or a link for its traffic. Click: list its connections. Double-click a "
+                      "city: look it up on VirusTotal (in your browser). Shift+click a city: trace the route to it. "
+                      "Right-click: more. Wheel: zoom, drag: move, double-click elsewhere: whole world. Without DB-IP, "
+                      "destinations are placed by the owner's country (needs \"Look up owners\" on the Live traffic "
+                      "page).")
         hint.setWordWrap(True)
         hint.setStyleSheet("color: gray; font-style: italic;")
         layout.addWidget(hint)
@@ -303,6 +309,74 @@ class NetworkTabMixin:
             text += " (owner lookups are off and DB-IP is not installed)"
         self.map_summary_label.setText(text)
         self.map_summary_label.setStyleSheet("color: red; font-weight: bold;" if inbound else "")
+
+    # region Map actions: look up, route, menu
+
+    def _map_choice(self, items: list) -> str:
+        """The value of the item to use: the only one, or the one picked in a small menu at the cursor ('' = none)."""
+        if not items:
+            return ""
+        if len(items) == 1:
+            return items[0][1]
+        menu = QMenu(self.world_map)
+        actions = {menu.addAction(label): value for label, value in items}
+        chosen = menu.exec(QCursor.pos())
+        return actions.get(chosen, "")
+
+    def _map_lookup(self, place):
+        """Double-click on a node: what is known about the destination, on VirusTotal. The site itself is not
+        contacted: it may be the very thing being checked."""
+        items = ([(f"Look up {h} on VirusTotal", h) for h in route.valid_hosts(place.hosts)[:8]]
+                 + [(f"Look up {a} on VirusTotal", a) for a in route.public_addresses(place.addresses)[:4]])
+        target = self._map_choice(items)
+        if not target:
+            self._update_status("No site name or address to look up for this place yet.")
+            return
+        QDesktopServices.openUrl(QUrl(route.reputation_url(target)))
+        self._update_status(f"VirusTotal page of {target} opened in the browser.")
+
+    def _map_trace(self, place):
+        """Shift+click on a node: the route to its address, hop by hop."""
+        addresses = route.public_addresses(place.addresses)
+        address = self._map_choice([(f"Trace the route to {a}", a) for a in addresses[:12]])
+        if not address:
+            self._update_status("No address to trace for this place yet.")
+            return
+        self._start_route(address, f"{place.label} ({address})")
+
+    def _start_route(self, address: str, title: str):
+        old = getattr(self, "_route_dialog", None)
+        if old is not None:
+            old.close()
+        traffic_geoip = self.traffic_monitor.geoip if self.traffic_monitor is not None else geoip.GeoIP()
+        dialog = RouteDialog(self, address, title, traffic_geoip.locate, self.world_map.set_route)
+        self._route_dialog = dialog
+        dialog.show()
+        dialog.start()
+
+    def _map_menu(self, place, position):
+        menu = QMenu(self.world_map)
+        if place is not None:
+            where = place.label if place.precise else place.country
+            menu.addAction(f"🔎 Show the connections to {where}").triggered.connect(
+                lambda: self._show_place_traffic(place.label) if place.precise else self._show_country_traffic(place.country))
+            menu.addAction("🛰 Look up on VirusTotal...").triggered.connect(lambda: self._map_lookup(place))
+            menu.addAction("🧭 Trace the route...").triggered.connect(lambda: self._map_trace(place))
+            hosts = route.valid_hosts(place.hosts)[:8]
+            if hosts:
+                sites = menu.addMenu("🌐 Open the site itself (connects to it)")
+                for host in hosts:
+                    sites.addAction(host).triggered.connect(
+                        lambda _checked=False, h=host: QDesktopServices.openUrl(QUrl(route.site_url(h))))
+            menu.addAction("📋 Copy the addresses").triggered.connect(
+                lambda: QApplication.clipboard().setText("\n".join(sorted(place.addresses))))
+            menu.addSeparator()
+        if self.world_map.route:
+            menu.addAction("Clear the route").triggered.connect(lambda: self.world_map.set_route([]))
+        menu.addAction("Reset the view").triggered.connect(self.world_map.reset_view)
+        menu.exec(position)
+
+    # endregion
 
     def _show_country_traffic(self, code: str):
         """Map click: list that country's connections on the Live traffic page."""

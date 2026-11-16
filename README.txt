@@ -125,8 +125,10 @@ License: MIT
                        characters of the key only), graphics cards with their real video
                        memory, installed programs (filter, CSV export).
                        "Saved Wi-Fi passwords and Windows key" shows the secrets this
-                       PC keeps for you, on screen only, after a confirmation and as
-                       administrator: Wi-Fi passwords and the firmware Windows key;
+                       PC keeps for you, on screen only, as administrator and after a
+                       confirmation that starts with a PERSONAL USE ONLY warning: use it
+                       only on your own PC and for your own passwords (reading someone
+                       else's without permission is forbidden and may be a crime): Wi-Fi passwords and the firmware Windows key;
                        Windows Credential Manager entries (saved web, app and Remote
                        Desktop logins); software license keys (Office, Adobe, Autodesk,
                        VMware); and website passwords saved in Chrome, Edge, Brave and
@@ -170,9 +172,19 @@ License: MIT
                      - World map: countries the PC talks to, with an arc from your
                        country (Windows region setting) to each destination, circles
                        sized by the number of connections, red when a computer from
-                       that country connects to this PC. Hover for programs, sites
-                       and volumes; click a country to list its connections; wheel
-                       to zoom, drag to move, double click for the whole world.
+                       that country connects to this PC. Hover a city, a country or a
+                       link for its programs, sites, addresses, volumes and current
+                       speed; click to list its connections; double-click a city to
+                       look it up on VirusTotal in your browser (the destination
+                       itself is not contacted); Shift+click a city to trace the
+                       route to it hop by hop (Windows tracert, up to 30 hops): the
+                       hops placed from the local DB-IP file are drawn on the map as a
+                       dashed line, and a window lists every hop. Right-click a city
+                       for a menu: show its connections, look it up, trace the route,
+                       open the site itself (this connects to it), copy its addresses,
+                       clear the route. Names that would overlap are left out (zoom
+                       in to see them). Wheel to zoom, drag to move, double-click
+                       elsewhere for the whole world.
                        Server locations: "Download DB-IP City Lite" (World map page,
                        about 60 MB, free, updated monthly) places every server in its
                        real city; the list gets a Location column. Lookups then run

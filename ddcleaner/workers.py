@@ -97,6 +97,10 @@ class DISMWorker(QThread):
             self.finished.emit(-1, f"Error: {str(e)}")
 
 
+# the same worker runs any console tool and streams its output: the route trace uses it under a neutral name
+CommandWorker = DISMWorker
+
+
 class SecurityAuditWorker(QThread):
     """Worker thread for security audit."""
     progress = Signal(str)

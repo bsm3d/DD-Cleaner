@@ -98,6 +98,8 @@ def test_map_places_hover_and_click(qapp):
     m.place_clicked.connect(clicked.append)
     m.grab()
     QTest.mouseClick(m, Qt.MouseButton.LeftButton, pos=at.toPoint())
+    assert clicked == []                                 # a click waits for the double-click delay
+    m.flush_click()
     assert clicked == ["Frankfurt am Main, DE"]
 
 
@@ -120,6 +122,7 @@ def test_map_widget_hit_test_tooltip_and_click(qapp):
     from PySide6.QtCore import Qt
     from PySide6.QtTest import QTest
     QTest.mouseClick(m, Qt.MouseButton.LeftButton, pos=us.toPoint())
+    m.flush_click()
     assert clicked == ["US"]
 
 
