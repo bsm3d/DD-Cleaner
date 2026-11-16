@@ -163,6 +163,36 @@ def test_download_installs_valid_city_database(tmp_path, monkeypatch):
     assert os.path.isfile(dest / geoip.FILE_NAME) and not os.path.exists(dest / (geoip.FILE_NAME + ".download"))
 
 
+def test_an_update_replaces_a_database_that_is_in_use(tmp_path, monkeypatch):
+    """The live traffic view keeps the database memory-mapped: Windows refuses to replace such a file
+    ("Access is denied") unless the reader lets go of it first."""
+    dest = tmp_path / "geo"
+    dest.mkdir()
+    build_mmdb(dest / geoip.FILE_NAME)
+    in_use = geoip.GeoIP(str(dest))
+    assert in_use.available and in_use._reader is not None           # the old file is mapped
+    monkeypatch.setattr(geoip, "location_from_record",
+                        lambda rec: geoip.Location("BE", "Brussels", "", 50.85, 4.35) if rec else None)
+    monkeypatch.setattr(geoip.MMDBReader, "lookup", lambda self, addr: {"location": {}})
+    body = gz_of(dest / geoip.FILE_NAME)
+    old_reader = in_use._reader
+    info = geoip.download_dbip(str(dest), today=date(2026, 9, 15),
+                               opener=lambda req, timeout: FakeResponse("https://download.db-ip.com/free/x.mmdb.gz", body))
+    assert info["month"] == "2026-09" and not os.path.exists(dest / (geoip.FILE_NAME + ".download"))
+    assert in_use.locate("1.2.3.4").city == "Brussels" and in_use._reader is not old_reader   # reopened by itself
+    in_use.close()
+
+
+def test_a_suspended_reader_answers_nothing_and_caches_nothing(tmp_path):
+    build_mmdb(tmp_path / geoip.FILE_NAME)
+    g = geoip.GeoIP(str(tmp_path))
+    g.suspend()
+    assert g._reader is None and not g.available and g.locate("1.2.3.4") is None and g._cache == {}
+    g.resume()
+    assert g.available
+    g.close()
+
+
 def test_download_refuses_other_hosts_and_wrong_content(tmp_path):
     src = tmp_path / "src.mmdb"
     build_mmdb(src)

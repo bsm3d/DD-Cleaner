@@ -13,8 +13,11 @@ import logging
 import mmap
 import os
 import struct
+import threading
+import time
 import urllib.parse
 import urllib.request
+import weakref
 from dataclasses import dataclass
 from datetime import date, datetime
 from functools import lru_cache
@@ -30,6 +33,8 @@ METADATA_MARKER = b"\xab\xcd\xefMaxMind.com"
 UPDATE_AFTER_DAYS = 40
 MAX_DEPTH = 32
 MAX_DECODED_ITEMS = 100_000   # one DB-IP record is a few dozen items
+REPLACE_TRIES, REPLACE_WAIT = 5, 0.5   # another program (an antivirus) may hold the new file for a moment
+_locators = weakref.WeakSet()  # every GeoIP alive: they must let go of the file before an update replaces it
 
 
 def get_geoip_dir() -> str:
@@ -245,12 +250,17 @@ class GeoIP:
         self._reader: Optional[MMDBReader] = None
         self._opened_mtime = None
         self._cache: Dict[str, Optional[Location]] = {}
+        self._lock = threading.RLock()  # lookups run in the traffic thread, an update suspends from another one
+        self._suspended = False
+        _locators.add(self)
 
     @property
     def path(self) -> str:
         return os.path.join(self.folder or get_geoip_dir(), FILE_NAME)
 
     def _open(self) -> Optional[MMDBReader]:
+        if self._suspended:
+            return None
         try:
             mtime = os.path.getmtime(self.path)
         except OSError:
@@ -267,20 +277,22 @@ class GeoIP:
 
     @property
     def available(self) -> bool:
-        return self._open() is not None
+        with self._lock:
+            return self._open() is not None
 
     def locate(self, addr: str) -> Optional[Location]:
-        if addr in self._cache:
-            return self._cache[addr]
-        reader = self._open()
-        if reader is None:
-            return None
-        try:
-            loc = location_from_record(reader.lookup(addr))
-        except Exception:  # corrupted / crafted data section
-            loc = None
-        self._cache[addr] = loc
-        return loc
+        with self._lock:
+            if addr in self._cache:
+                return self._cache[addr]
+            reader = self._open()
+            if reader is None:
+                return None
+            try:
+                loc = location_from_record(reader.lookup(addr))
+            except Exception:  # corrupted / crafted data section
+                loc = None
+            self._cache[addr] = loc
+            return loc
 
     def info(self) -> Dict:
         try:
@@ -290,10 +302,23 @@ class GeoIP:
             return {}
 
     def close(self):
-        if self._reader is not None:
-            self._reader.close()
-            self._reader = None
-        self._cache.clear()
+        with self._lock:
+            if self._reader is not None:
+                self._reader.close()
+                self._reader = None
+            self._cache.clear()
+
+    def suspend(self):
+        """Let go of the database file and stay away from it: Windows refuses to replace a file that is
+        memory-mapped. Lookups answer None until resume()."""
+        with self._lock:
+            self._suspended = True
+            self.close()
+
+    def resume(self):
+        with self._lock:
+            self._suspended = False
+            self._opened_mtime = None  # open the file again at the next lookup
 
 # endregion
 
@@ -344,7 +369,7 @@ def download_dbip(folder: Optional[str] = None, progress: Optional[Callable[[int
                 reader.close()
             if "city" not in db_type.lower() or probe is None:
                 raise ValueError(f"unexpected database content ({db_type})")
-            os.replace(tmp, target)
+            _install(tmp, target)
             info = {"month": month, "downloaded": datetime.now().isoformat(timespec="seconds"),
                     "source": final, "database_type": db_type, "attribution": ATTRIBUTION}
             with open(os.path.join(folder, "geoip.json"), "w", encoding="utf-8") as f:
@@ -358,6 +383,27 @@ def download_dbip(folder: Optional[str] = None, progress: Optional[Callable[[int
             except OSError:
                 pass
     raise ValueError(f"DB-IP download failed: {last_error}")
+
+
+def _install(tmp: str, target: str) -> None:
+    """Put the new database in place of the old one. Every reader of this program lets go of the old file first
+    (the live traffic view keeps it memory-mapped, and Windows then answers "Access is denied")."""
+    wanted = os.path.normcase(os.path.abspath(target))
+    readers = [g for g in list(_locators) if os.path.normcase(os.path.abspath(g.path)) == wanted]
+    for reader in readers:
+        reader.suspend()
+    try:
+        for attempt in range(REPLACE_TRIES):
+            try:
+                os.replace(tmp, target)
+                return
+            except PermissionError:
+                if attempt == REPLACE_TRIES - 1:
+                    raise
+                time.sleep(REPLACE_WAIT)
+    finally:
+        for reader in readers:
+            reader.resume()
 
 
 def needs_update(info: Dict, today: Optional[date] = None) -> bool:
