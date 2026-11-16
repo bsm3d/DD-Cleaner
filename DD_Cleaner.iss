@@ -65,7 +65,7 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 ; DD Cleaner never writes inside its own install folder at runtime (settings/logs/backups live in the
-; protected C:\ProgramData\DD Cleaner, see ddcleaner.common.data_dir and README section 6) - this just
+; protected C:\ProgramData\DD Cleaner, see ddcleaner.common.data_dir and README section 7) - this just
 ; catches stray *.pyc/__pycache__ that a from-source debug run could have left here, never real app data.
 Type: filesandordirs; Name: "{app}\__pycache__"
 
