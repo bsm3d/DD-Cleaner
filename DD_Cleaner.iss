@@ -61,7 +61,10 @@ Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; runascurrentuser: by default Inno Setup starts a "postinstall" program as the original, non-elevated user, and
+; Windows then refuses DD_Cleaner.exe (its manifest requires administrator): "CreateProcess failed; code 740".
+; Started from the installer's own elevated context it runs at once, without a second UAC prompt.
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallDelete]
 ; DD Cleaner never writes inside its own install folder at runtime (settings/logs/backups live in the
