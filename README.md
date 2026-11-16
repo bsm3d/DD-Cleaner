@@ -112,6 +112,7 @@ tools/                 Scripts that generate the icon and the map data
 DD_Cleaner.spec        PyInstaller build
 DD_Cleaner.iss         Inno Setup installer
 README.txt             User manual shipped with the installer
+LICENSE                MIT License
 ```
 
 ## Safety design
@@ -163,6 +164,13 @@ DD Cleaner works offline. It connects to the Internet only for the features belo
 
 The hardening, tweak, repair and removal features modify system settings. Even with the safeguards above, use the
 program at your own risk and keep a restore point or a full backup of your system.
+
+## License
+
+DD Cleaner is released under the [MIT License](LICENSE).
+
+The installer also contains third-party components under their own licenses, notably Python and Qt for Python
+(PySide6, LGPL v3). ClamAV, installed separately, is licensed under the GPL v2.
 
 ## Author
 
