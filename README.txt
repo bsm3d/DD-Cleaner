@@ -109,9 +109,16 @@ License: MIT
                        called update.pdf) is flagged in red, and a program whose bytes
                        are close to random (high entropy, possibly packed or encrypted,
                        a common malware trait) in orange. "Scan with ClamAV" scans the
-                       selected programs. Read-only; export to CSV. "Persistence hunt"
-                       opens the Antivirus > Persistence page, which covers more places
-                       and can remove entries.
+                       selected programs. Listing changes nothing; export to CSV.
+                       "Remove ticked entries..." stops the ticked programs from
+                       starting with Windows: the Run value is deleted, the file is
+                       moved out of the Startup folder, or the scheduled task is
+                       deleted. The program itself stays installed, and each entry is
+                       saved first. Entries for all users and scheduled tasks need
+                       administrator rights. To switch an entry off without removing
+                       it: Task Manager > Startup.
+                       "Persistence hunt" opens the Antivirus > Persistence page,
+                       which covers more places (services, hijacked settings...).
                      - DPC / ISR load: five one-second samples of the processor time
                        spent in drivers (the usual cause of audio crackling). Read-only.
                      - Inventory: Windows edition and activation (the last five
@@ -369,6 +376,7 @@ License: MIT
                            tweaks_backup_*.json (advanced tweaks)
   garbage_backups\         .reg exports of the registry keys deleted in Garbage
   hunt_backups\            What was removed from the Persistence page
+  startup_backups\         What was removed from the Startup programs page
   driver_backups\          Copies of the drivers removed or uninstalled
   api_keys.json            Your VirusTotal API key
   garbage_stats.json       What was freed (for the Overview charts)
@@ -400,6 +408,9 @@ License: MIT
   Deleted files        Windows Recycle Bin (unless "Delete permanently" was ticked).
   Registry (Garbage)   Double-click the .reg file in garbage_backups\.
   Persistence entries  The .xml / .reg files in hunt_backups\.
+  Startup entries      In startup_backups\: double-click the .reg file, import the
+                       .xml file in Task Scheduler, or move the file back to its
+                       Startup folder.
   Drivers              pnputil /add-driver <saved folder>\*.inf /install, or the
                        restore point created before a complete uninstall.
   Anything else        Windows System Restore.

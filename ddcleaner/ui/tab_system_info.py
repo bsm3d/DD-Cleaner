@@ -1,4 +1,5 @@
-"""System Health extra pages: startup programs, DPC/ISR load, inventory and saved passwords."""
+"""System Health extra pages: startup programs (with removal of what the user ticks), DPC/ISR load, inventory and
+saved passwords."""
 
 import csv
 import hashlib
@@ -13,11 +14,11 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QMimeData, QByteArray
 from PySide6.QtGui import QColor, QPainter
 
-from ddcleaner import startup, system_info, saved_keys
+from ddcleaner import startup, startup_cleanup, system_info, saved_keys
 from ddcleaner.common import SUBPROCESS_FLAGS, SYSTEM32, safe_environment, sys_exe
 from ddcleaner.system_utils import SystemUtils
 from ddcleaner.workers import CallWorker
-from ddcleaner.ui.safe_text import plain, csv_cell, count
+from ddcleaner.ui.safe_text import plain, csv_cell, count, listed
 
 _copied_hash = None  # SHA-256 of the secret last copied, to clear it later without keeping the secret
 
@@ -159,7 +160,8 @@ class SystemInfoTabMixin:
         layout = QVBoxLayout(page)
         row = QHBoxLayout()
         self.startup_scan_btn = primary(QPushButton("🔄 List startup programs"))
-        self.startup_scan_btn.setToolTip("Run / RunOnce keys, Startup folders and logon/boot scheduled tasks (read-only)")
+        self.startup_scan_btn.setToolTip("Run / RunOnce keys, Startup folders and logon/boot scheduled tasks. "
+                                         "Listing changes nothing.")
         self.startup_scan_btn.clicked.connect(self._scan_startup)
         self.startup_av_btn = QPushButton("🦠 Scan with ClamAV")
         self.startup_av_btn.setToolTip("Scan the selected programs (all of them when none is selected)")
@@ -177,15 +179,33 @@ class SystemInfoTabMixin:
         row.addStretch()
         row.addWidget(hunt_btn)
         layout.addLayout(row)
-        self.startup_summary = QLabel("Not listed yet. Nothing is changed by this page.")
+        self.startup_summary = QLabel("Not listed yet. Listing changes nothing.")
         self.startup_summary.setWordWrap(True)
         layout.addWidget(self.startup_summary)
         self.startup_tree = make_tree(self.STARTUP_COLUMNS, (190, 80, 150, 190, 230, 400),
                                       "List the startup programs to fill this list.")
         layout.addWidget(self.startup_tree)
+
+        from ddcleaner.ui.tab_cleanup import tick_buttons  # here: tab_cleanup imports this module
+        row = QHBoxLayout()
+        backups_btn = QPushButton("📂 Backups")
+        backups_btn.setToolTip("Folder where what was removed is saved (.reg for registry values, .xml for tasks, "
+                               "and the files moved out of a Startup folder)")
+        backups_btn.clicked.connect(self._open_startup_backups)
+        self.startup_remove_btn = QPushButton("🗑 Remove ticked entries...")
+        self.startup_remove_btn.setToolTip("Stop the ticked programs from starting with Windows. The program itself "
+                                           "is not uninstalled, and each entry is saved first so it can be put back.")
+        self.startup_remove_btn.clicked.connect(self._remove_startup_entries)
+        for widget in tick_buttons(self.startup_tree) + [backups_btn]:
+            row.addWidget(widget)
+        row.addStretch()
+        row.addWidget(self.startup_remove_btn)
+        layout.addLayout(row)
+
         info = QLabel("ℹ️ Red: runs for everyone from a folder a standard user can write to, or the file's real "
                       "content is an executable/script hiding under another extension. Orange: missing, not signed, "
-                      "or high entropy (possibly packed). Disabling a startup program is done in Task Manager > Startup.")
+                      "or high entropy (possibly packed). Removing an entry only stops the automatic start: the "
+                      "program stays installed. To switch one off without removing it: Task Manager > Startup.")
         info.setWordWrap(True)
         info.setStyleSheet("color: gray; font-style: italic;")
         layout.addWidget(info)
@@ -202,6 +222,7 @@ class SystemInfoTabMixin:
                          self._on_startup_scanned, self.startup_scan_btn, "Listing startup programs...")
 
     def _on_startup_scanned(self, entries, error):
+        from ddcleaner.ui.tab_cleanup import checkable, not_checkable  # here: tab_cleanup imports this module
         if error:
             self._update_status("Startup listing failed.")
             QMessageBox.warning(self, "Error", plain(f"The startup programs could not be listed: {error}"))
@@ -214,6 +235,11 @@ class SystemInfoTabMixin:
                                     entry.command])
             item.setData(0, Qt.ItemDataRole.UserRole, entry)
             item.setToolTip(5, plain(f"{entry.location}\n{entry.path or '(program not found)'}"))
+            if startup_cleanup.removable(entry):
+                checkable(item)
+                item.setToolTip(0, plain(startup_cleanup.describe(entry)))
+            else:
+                not_checkable(item)
             if entry.severity:
                 for column in range(len(self.STARTUP_COLUMNS)):
                     item.setForeground(column, SEVERITY_COLORS[entry.severity])
@@ -225,6 +251,52 @@ class SystemInfoTabMixin:
                                      f"{flagged} to look at.")
         self.startup_summary.setStyleSheet("color: red; font-weight: bold;" if replaceable else "")
         self._update_status("Startup programs listed.")
+
+    def _remove_startup_entries(self):
+        from ddcleaner.ui.tab_cleanup import checked_payloads
+        chosen = [e for e in checked_payloads(self.startup_tree) if startup_cleanup.removable(e)]
+        if not chosen:
+            QMessageBox.information(self, "Info", "Tick the startup entries to remove first.")
+            return
+        if any(startup_cleanup.needs_admin(e) for e in chosen) and not SystemUtils.check_admin_privileges():
+            QMessageBox.warning(self, "Administrator Required",
+                                "Removing an entry that starts for all users, or a scheduled task, needs administrator "
+                                "rights.\nRestart the application as administrator, or untick those entries.")
+            return
+        lines = [f"{e.name}: {startup_cleanup.describe(e)}" for e in chosen]
+        text = (f"Remove {count(len(chosen), 'startup entry', 'startup entries')}?\n\n" + listed(lines)
+                + "\n\nThe programs stay installed: they only stop starting by themselves. "
+                  f"To undo, use the files saved in:\n{startup_cleanup.backup_dir()}")
+        if not self._confirm("Remove startup entries", text, "\n".join(lines) if len(lines) > 10 else ""):
+            return
+        stopped = self.stop_flag.is_set  # a removal is not interrupted by Stop / Esc, only by closing the program
+        self._start_call("startup_remove_worker",
+                         lambda: startup_cleanup.remove_entries(chosen, startup_cleanup.backup_dir(), stop=stopped),
+                         self._on_startup_removed, self.startup_remove_btn, "Removing the ticked startup entries...")
+
+    def _on_startup_removed(self, result, error):
+        from ddcleaner.ui.tab_cleanup import remove_rows
+        if error:
+            QMessageBox.warning(self, "Error", plain(f"The removal failed: {error}"))
+            return
+        remove_rows(self.startup_tree, result.removed)
+        gone = {id(e) for e in result.removed}
+        self.startup_entries = [e for e in self.startup_entries if id(e) not in gone]
+        self.startup_summary.setText(f"{count(len(result.removed), 'entry', 'entries')} removed, "
+                                     f"{count(len(result.backups), 'backup file')}. "
+                                     f"{count(len(self.startup_entries), 'startup program')} left in the list.")
+        self.startup_summary.setStyleSheet("")
+        self._update_status(f"{count(len(result.removed), 'startup entry', 'startup entries')} removed.")
+        if result.failed:
+            QMessageBox.warning(self, "Not everything was removed", plain(
+                f"{count(len(result.failed), 'entry', 'entries')} could not be removed:\n\n"
+                + listed(f"{e.name}: {why}" for e, why in result.failed)))
+
+    def _open_startup_backups(self):
+        folder = startup_cleanup.backup_dir()
+        os.makedirs(folder, exist_ok=True)
+        subprocess.Popen([sys_exe("explorer.exe"), folder], cwd=SYSTEM32, env=safe_environment(),
+                         creationflags=SUBPROCESS_FLAGS)
 
     def _selected_startup_entries(self) -> list:
         items = self.startup_tree.selectedItems()

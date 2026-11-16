@@ -43,7 +43,7 @@ WORKER_ATTRS = ("driver_scan_worker", "vuln_scan_worker", "blocklist_download_wo
                 "garbage_delete_worker", "hunt_process_worker", "hunt_persistence_worker",
                 "vt_worker", "prefs_test_worker", "hunt_remove_worker", "garbage_usage_worker",
                 "driver_unused_worker", "driver_remove_worker", "driver_all_worker", "driver_restore_worker",
-                "driver_uninstall_worker", "driver_leftover_worker", "yara_rule_worker")
+                "driver_uninstall_worker", "driver_leftover_worker", "yara_rule_worker", "startup_remove_worker")
 
 
 # What the "still running" question calls an operation (anything else: its internal name, made readable)
