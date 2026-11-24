@@ -5,10 +5,12 @@ statically: nothing else to install.
 
 | | |
 | --- | --- |
-| ![Driver age](docs/screenshots/driver-age.png) | ![Health report](docs/screenshots/health-report.png) |
-| Driver age | Health report |
-| ![Security audit](docs/screenshots/security-audit.png) | ![Antivirus scan](docs/screenshots/antivirus-scan.png) |
-| Security audit | Antivirus scan |
+| ![Driver age](docs/screenshots/driver-age.png) | ![World map](docs/screenshots/world-map.png) |
+| Driver age | World map |
+| ![Security audit](docs/screenshots/security-audit.png) | ![Network](docs/screenshots/network.png) |
+| Security audit | Network |
+| ![Antivirus scan](docs/screenshots/antivirus-scan.png) | |
+| Antivirus scan | |
 
 ## What it does
 
