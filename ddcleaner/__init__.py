@@ -1,1 +1,0 @@
-"""DD Cleaner application package."""

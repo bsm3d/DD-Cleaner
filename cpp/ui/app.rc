@@ -1,0 +1,28 @@
+#include <winuser.h>
+
+1 RT_MANIFEST "app.manifest"
+2 RCDATA "world_countries.json"
+10 ICON "dd_cleaner.ico"
+
+1 VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEOS 0x4L
+FILETYPE 0x1L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "BSM"
+      VALUE "FileDescription", "DD Cleaner"
+      VALUE "FileVersion", "1.0.0.0"
+      VALUE "ProductName", "DD Cleaner 1.0.0"
+      VALUE "LegalCopyright", "MIT License"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

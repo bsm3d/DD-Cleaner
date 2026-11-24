@@ -23,3 +23,6 @@ ui_state.ini
 
 # Local tooling
 .claude/
+
+# C++ port
+cpp/build/

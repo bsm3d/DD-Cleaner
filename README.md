@@ -1,177 +1,47 @@
-<p align="center">
-  <img src="ddcleaner/data/dd_cleaner.png" width="96" alt="DD Cleaner icon">
-</p>
+# DD Cleaner 1.0.0
 
-<h1 align="center">DD Cleaner</h1>
+Plain C++17 and the Win32 API, built with MSYS2 (UCRT64). No Qt, no Python, no runtime to install: the executables are
+linked statically.
 
-<p align="center">
-  Driver checks, system health, network view, security audit, antivirus pages and cleanup for Windows 10 and 11.<br>
-  One desktop program for what Windows does not show in one place.
-</p>
-
-<p align="center">
-  <a href="https://github.com/bsm3d/DD-Cleaner/releases/latest"><b>Download the installer</b></a>
-</p>
-
----
-
-## Overview
-
-DD Cleaner is a Windows desktop application written in Python with PySide6 (Qt). It reads the state of a PC
-(drivers, disks, crashes, firewall, connections, startup entries, leftovers) and offers a small number of carefully
-guarded actions to repair, harden or clean it.
-
-Two rules shape the whole program:
-
-- **Reading changes nothing.** Every scan, listing, audit and report is read-only.
-- **Every change is confirmed and can be undone.** A confirmation always defaults to "No", and the previous state is
-  saved first (registry export, driver copy, JSON snapshot, restore point).
-
-## Features
-
-| Tab | What it does |
+| Target | What it is |
 | --- | --- |
-| **Driver Checker** | Checks every driver file against the Microsoft vulnerable driver blocklist and shows whether Windows enforces it. Lists third-party drivers by age. Finds driver packages no device uses and removes them, or uninstalls a driver completely, with a saved copy each time. |
-| **System Health** | Health report for the last 30 days: disks and SMART, free space, blue screens, hardware errors, crashes, pending restart. Repair tools (SFC, DISM, network reset) with live output. Startup programs with signature and file-type checks, and removal of the entries you tick. DPC / ISR load. Inventory of the PC and its installed programs. |
-| **Firewall & Network** | Live traffic per application and per destination, an interactive world map of where the PC connects (hover a link for its traffic, double-click a city to look it up, Shift+click to trace the route), firewall profiles and risky rules, blocked traffic from the firewall log, adapters and listening ports with their exposure. |
-| **Security** | Audit with a score out of 100 across System, Accounts, Network and Data. Three hardening profiles (Basic, Recommended, Strict), advanced tweaks, and a dated list of changes to undo. |
-| **Antivirus** | Scans with ClamAV: chosen items, quick scan or full scan, in parallel, with a quarantine. Running processes and persistence hunt (services, scheduled tasks, hijacked settings) with removal of what you tick. Watched folders, scheduled quick scan, custom YARA rules, VirusTotal lookups. |
-| **Garbage** | Finds files and folders by word or wildcard, leftovers of uninstalled programs and dead registry entries. Charts of what was found and what was freed. Deleted files go to the Recycle Bin by default; registry keys are exported to a `.reg` file first. |
+| `ddcore` | The engine (library): everything the Python version does except the window. |
+| `ddc.exe` | Command line front end: `presets`, `search`, `leftovers`, `usage`, `registry`, `startup`, `hunt`, `audit`, `secrets`. Nothing is changed unless `--delete --yes` is given. `secrets` hides the values unless `--show`. |
+| `DD_Cleaner.exe` | The Win32 window, 7 groups of pages (below). |
+| `ddcore_tests.exe` | Self-contained tests (about 2700 checks): fake data, a scripted VirusTotal server, a fake registry for the hardening engine, and the real PC for the readers. |
 
-Across the program: filters and CSV export on result lists, a status-bar Stop button, and the window remembers its
-size, pages and options.
+## The window
 
-## Requirements
+Same layout as the Python version: Driver Checker (vulnerable drivers, age, unused, complete uninstall), System Health
+(report, repair tools, startup programs, DPC/ISR load, inventory with the saved-passwords window), Firewall and Network
+(live traffic, world map, firewall, network), Security (audit and hardening profiles, advanced tweaks with undo),
+Antivirus (ClamAV scan, quarantine, signature update, VirusTotal), Threat hunt (processes, persistence with removal,
+protection), Garbage (files and folders, registry, overview).
 
-- Windows 10 or 11, 64-bit.
-- Administrator rights. The installed program asks for elevation at every start.
-- **ClamAV for Windows**, for the scans of the Antivirus tab only. It is not bundled: install it from
-  [clamav.net](https://www.clamav.net/) into `C:\Program Files\ClamAV`, then use "Update signatures" in the program.
-  Everything else works without it.
+Esc stops the running task, F5 refreshes the page, Ctrl+C copies the selected rows. `--group N --page M` opens a page;
+`--shot file.bmp [--refresh] [--delay ms]` saves a picture of the window and quits (used to check the layout).
 
-## Installation
+Every deletion, removal or change asks first and saves a backup before touching anything (`.reg`, `.xml`, `.json`, a copy
+of the file, a driver export). The data lives in `%APPDATA%\BSM\DDCleaner` (override: `DDCLEANER_HOME`).
 
-1. Download `DD_Cleaner_Setup_3.0.exe` from the [releases page](https://github.com/bsm3d/DD-Cleaner/releases/latest).
-2. Run it and accept the Windows prompt. It installs to `C:\Program Files\DD Cleaner`.
-3. Start DD Cleaner from the Start Menu.
-
-The installer offers no other location on purpose. The program runs as administrator, so its folder must be one that
-only administrators can change; it checks this at every start and warns if the folder is not protected.
-
-No Python is needed on the PC: the installer contains its own runtime.
-
-## Running from source
-
-Developed and tested with Python 3.14 and PySide6 6.11.
+## Build
 
 ```bash
-pip install -r requirements.txt
+export PATH=/c/msys64/ucrt64/bin:/c/Program\ Files/CMake/bin:$PATH
+cmake -S cpp -B cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build cpp/build
+cpp/build/ddcore_tests.exe
 ```
 
-```bash
-python DD_Cleaner.py
-```
+MSYS2 packages needed: the UCRT64 toolchain and `mingw-w64-ucrt-x86_64-sqlite3` (read the Chromium password databases).
+CMake comes from `C:\Program Files\CMake`.
 
-Run from source, the program does not ask for elevation by itself: start it from an administrator terminal, or use
-the "Restart as administrator" button in its status bar. Its data (logs, downloaded lists, backups) is then kept in
-the project folder; all of it is excluded from version control.
+## Differences from the Python version
 
-### Tests
-
-```bash
-python -m pytest tests
-```
-
-The suite runs off screen. It never changes the real system: registry writes stay under a dedicated test key, file
-operations stay in temporary folders, and services, restore points and hardening are mocked.
-
-### Building the installer
-
-Requires [PyInstaller](https://pyinstaller.org/) and [Inno Setup 6](https://jrsoftware.org/isinfo.php).
-
-```bash
-python -m PyInstaller DD_Cleaner.spec --noconfirm
-```
-
-```bash
-"%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" DD_Cleaner.iss
-```
-
-The result is `dist_installer\DD_Cleaner_Setup_3.0.exe`. `build_installer.bat` runs both steps.
-
-## Project layout
-
-```
-DD_Cleaner.py          Entry point and application style
-security_audit.py      Audit and hardening engine
-ddcleaner/             Logic modules, without Qt (drivers, health, firewall, traffic, garbage, ClamAV...)
-ddcleaner/ui/          Interface: main window and one module per tab
-ddcleaner/data/        Icon and world map outlines
-tests/                 Test suite
-tools/                 Scripts that generate the icon and the map data
-DD_Cleaner.spec        PyInstaller build
-DD_Cleaner.iss         Inno Setup installer
-README.txt             User manual shipped with the installer
-LICENSE                MIT License
-```
-
-## Safety design
-
-- **Protected folders.** The program refuses to run from a folder a standard user can write to, and keeps its data in
-  `C:\ProgramData\DD Cleaner`, created for SYSTEM and Administrators only.
-- **Hardened child processes.** System tools are started by absolute path with a cleaned environment, never through a
-  shell.
-- **Backups before changes.** Registry keys, scheduled tasks, driver packages and hardening settings are saved before
-  they are touched.
-- **Protected items.** Core Windows keys, core drivers and system paths cannot be selected for deletion.
-- **Secrets stay on screen.** Saved passwords and keys are shown only after a confirmation, are never written to a
-  file or to the log, and a copied secret leaves the clipboard after 30 seconds.
-
-## Network connections
-
-DD Cleaner works offline. It connects to the Internet only for the features below, and asks before each download.
-
-| Feature | Contacts | What is sent |
-| --- | --- | --- |
-| Vulnerable driver blocklist | Microsoft | Nothing (download only) |
-| ClamAV signatures | database.clamav.net | Nothing (download by freshclam) |
-| Server locations on the map | db-ip.com | Nothing (download, lookups then run locally) |
-| Host names in live traffic | Your DNS server | Remote addresses, for reverse lookups |
-| Address owners (off by default) | Regional Internet registries (RDAP) | Public IP addresses, once per network block |
-| VirusTotal (your own API key) | virustotal.com | A file's hash; a file itself only after an explicit confirmation |
-
-## Keyboard shortcuts
-
-| Key | Action |
-| --- | --- |
-| F5 | Run the main scan of the page on screen |
-| Esc | Stop the running scans |
-| Ctrl+F | Go to the filter of the list on screen |
-| Space | Tick or untick the selected rows |
-| Ctrl+C | Copy the selected rows |
-| Ctrl+L | Show the log |
-| Ctrl+, | Preferences |
-| Ctrl+Q | Quit |
-
-## Credits
-
-- Antivirus engine: [ClamAV](https://www.clamav.net/) (installed separately).
-- IP geolocation: [DB-IP](https://db-ip.com/) City Lite, licensed under Creative Commons Attribution 4.0.
-- Map outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain).
-- Interface: [Qt for Python (PySide6)](https://doc.qt.io/qtforpython-6/).
-
-## Disclaimer
-
-The hardening, tweak, repair and removal features modify system settings. Even with the safeguards above, use the
-program at your own risk and keep a restore point or a full backup of your system.
-
-## License
-
-DD Cleaner is released under the [MIT License](LICENSE).
-
-The installer also contains third-party components under their own licenses, notably Python and Qt for Python
-(PySide6, LGPL v3). ClamAV, installed separately, is licensed under the GPL v2.
-
-## Author
-
-Benoit (BSM) Saint-Moulin
+- The charts of the Garbage overview are text bars in lists, the DPC/ISR and traffic views are lists, not drawn graphs.
+- The world map is drawn with GDI (countries, cities, links, route hops); it has zoom, drag, hover and the same clicks.
+- A browser database is copied to `%APPDATA%\BSM\DDCleaner\tmp` for a moment (and deleted at once) because the browser
+  keeps the original locked. The Python version copied it to the Windows temp folder.
+- `vt_lookup` refuses a 200 answer that is not JSON instead of showing "0 engines".
+- Not verified by a human click-through: the dialogs that change the system (hardening, uninstalling drivers, removal of
+  startup or hunt entries) were tested with fake systems in `ddcore_tests`, not on the real PC.
