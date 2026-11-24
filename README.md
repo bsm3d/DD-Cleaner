@@ -10,6 +10,15 @@ linked statically.
 | `DD_Cleaner.exe` | The Win32 window, 7 groups of pages (below). |
 | `ddcore_tests.exe` | Self-contained tests (about 2700 checks): fake data, a scripted VirusTotal server, a fake registry for the hardening engine, and the real PC for the readers. |
 
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Driver age](docs/screenshots/driver-age.png) | ![Health report](docs/screenshots/health-report.png) |
+| Driver age, coloured by how old the driver is. | Health report, with the event log marker and clearing. |
+| ![Security audit](docs/screenshots/security-audit.png) | ![Antivirus scan](docs/screenshots/antivirus-scan.png) |
+| Security audit and hardening profiles. | Antivirus scan (ClamAV). |
+
 ## The window
 
 Same layout as the Python version: Driver Checker (vulnerable drivers, age, unused, complete uninstall), System Health
