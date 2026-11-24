@@ -1,6 +1,6 @@
 # DD Cleaner
 
-A cleaning and maintenance tool for Windows, written in C++17 with the Win32 API. The executables are linked
+A cleaning and maintenance tool for Windows, written in C++ Win32 API. The executables are linked
 statically: nothing else to install.
 
 | | |
