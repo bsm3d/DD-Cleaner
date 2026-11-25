@@ -1,9 +1,9 @@
 ﻿; DD Cleaner
 ; © Benoit Saint-Moulin - 2026
 ; Version du fichier : 1.0.0
-; Fonction du fichier : Inno Setup script that builds the DD Cleaner 1.0.0 installer for Program Files and asks before closing a running copy.
+; Fonction du fichier : Inno Setup script that builds the DD Cleaner 1.0.0 installer for C:\Tools and asks before closing a running copy.
 
-; Installeur Inno Setup de DD Cleaner 1.0.0 (version C++) : installe dans {autopf}\DD Cleaner 1.0.0, distinct de la version Python 3.0.
+; Installeur Inno Setup de DD Cleaner 1.0.0 (version C++) : installe dans C:\Tools\DD Cleaner, dossier réservé en écriture aux administrateurs.
 ; L'installeur va dans D:\Documents\Coding\distributions\DD-Cleaner (BSM_DISTRIBUTIONS pour changer le dossier).
 ; Données dans %APPDATA%\BSM\DDCleaner : rien n'est écrit dans le dossier d'installation.
 
@@ -22,7 +22,9 @@ AppId={{3B7C5D1E-9A42-4F6B-8C0D-7E2A91F4B6C3}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={sd}\Tools\DD Cleaner
+DisableDirPage=yes
+UsePreviousAppDir=no
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
@@ -100,6 +102,54 @@ end;
 function InitializeUninstall(): Boolean;
 begin
   Result := ConfirmCloseIfRunning();
+end;
+
+// A copy installed somewhere else (Program Files) is removed first, or its files would stay behind. Silent: user data is kept.
+procedure RemoveInstallElsewhere();
+var
+  Key, Location, Uninstaller: String;
+  ResultCode: Integer;
+begin
+  Key := 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{3B7C5D1E-9A42-4F6B-8C0D-7E2A91F4B6C3}_is1';
+  if not RegQueryStringValue(HKLM, Key, 'InstallLocation', Location) then Exit;
+  if CompareText(RemoveBackslashUnlessRoot(Location), ExpandConstant('{app}')) = 0 then Exit;
+  if RegQueryStringValue(HKLM, Key, 'UninstallString', Uninstaller) then
+    Exec(RemoveQuotes(Uninstaller), '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+function Icacls(const Params: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := Exec(ExpandConstant('{sys}\icacls.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+// C:\Tools lets any signed-in user change what is below it, and this program runs elevated: only administrators may write
+// in its folder. Done before the files are copied, so there is no moment when they can be replaced.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  Dir, Quoted: String;
+  Rec: TFindRec;
+  IsLink: Boolean;
+begin
+  Result := '';
+  RemoveInstallElsewhere();
+  Dir := ExpandConstant('{app}');
+  Quoted := '"' + Dir + '"';
+  IsLink := False;
+  if FindFirst(Dir, Rec) then
+  begin
+    IsLink := (Rec.Attributes and $400) <> 0;
+    FindClose(Rec);
+  end;
+  if IsLink or not ForceDirectories(Dir) then
+  begin
+    Result := 'The folder ' + Dir + ' cannot be used (it is a link or it cannot be created).';
+    Exit;
+  end;
+  if not (Icacls(Quoted + ' /setowner *S-1-5-32-544 /T /L /Q') and Icacls(Quoted + ' /reset /T /L /Q') and
+          Icacls(Quoted + ' /inheritance:r /grant:r *S-1-5-32-544:(OI)(CI)F *S-1-5-18:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX /L /Q')) then
+    Result := 'The folder ' + Dir + ' could not be protected. Nothing was installed.';
 end;
 
 // ---- user data question (added by the audit, group 2) ----

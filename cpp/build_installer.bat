@@ -1,6 +1,6 @@
 @echo off
 REM DD Cleaner
-REM ?? Benoit Saint-Moulin - 2026
+REM © Benoit Saint-Moulin - 2026
 REM Version du fichier : 1.0.0
 REM Fonction du fichier : Builds DD Cleaner 1.0.0 with MSYS2 and CMake in Release mode, then runs Inno Setup to produce the installer.
 
