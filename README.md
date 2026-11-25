@@ -7,8 +7,8 @@ statically: nothing else to install.
 | --- | --- |
 | ![World map](docs/screenshots/world-map.png) | ![Network](docs/screenshots/network.png) |
 | World map | Network |
-| ![Antivirus scan](docs/screenshots/antivirus-scan.png) | |
-| Antivirus scan | |
+| ![Antivirus scan](docs/screenshots/antivirus-scan.png) | ![Threat hunt](docs/screenshots/threat-hunt.png) |
+| Antivirus scan | Threat hunt |
 
 ## What it does
 
