@@ -37,7 +37,8 @@ void fill_processes() {
     proc.shown.clear();
     std::vector<std::vector<std::wstring>> rows;
     for (const auto& p : proc.all) {
-        if (only && p.severity == SEV_INFO && p.flags.empty()) continue;
+        // a hidden path alone leaves a process "Ordinary": only the two upper verdicts are worth a look
+        if (only && p.severity < SEV_LOOK) continue;
         proc.shown.push_back(p);
         rows.push_back({severity_text(p.severity), p.name, std::to_wstring(p.pid), p.connections ? std::to_wstring(p.connections) : L"", p.signer, flags_text(p.flags), p.path});
     }
