@@ -5,10 +5,10 @@ statically: nothing else to install.
 
 | | |
 | --- | --- |
-| ![World map](docs/screenshots/world-map.png) | ![Network](docs/screenshots/network.png) |
-| World map | Network |
-| ![Antivirus scan](docs/screenshots/antivirus-scan.png) | ![Threat hunt](docs/screenshots/threat-hunt.png) |
-| Antivirus scan | Threat hunt |
+| ![Network](docs/screenshots/network.png) | ![Antivirus scan](docs/screenshots/antivirus-scan.png) |
+| Network | Antivirus scan |
+| ![World map](docs/screenshots/world-map.png) | ![Threat hunt](docs/screenshots/threat-hunt.png) |
+| World map | Threat hunt |
 
 ## What it does
 
